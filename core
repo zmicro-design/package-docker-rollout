@@ -1,0 +1,64 @@
+#!/bin/bash
+
+install() {
+  # get system os/arch
+  local arch="$PACKAGE_OS_ARCH"
+  local kernel="$PACKAGE_OS_KERNEL"
+  local platform="$PACKAGE_OS_PLATFORM"
+  # usr_bin_dir
+  local usr_bin_dir="$PACKAGE_USER_BIN_DIR"
+  local tmp_dir="$PACKAGE_TMP_DIR"
+
+  # prepare vars
+  local name="$PACKAGE_CORE_NAME"
+  # files
+  local tmp_file="$name"
+
+  # prepare context
+  cd $tmp_dir
+
+  # reference: https://github.com/Wowu/docker-rollout/releases
+  # example:
+  #   https://github.com/Wowu/docker-rollout/releases/download/v0.2/docker-rollout
+  # generate url
+  local url="https://github.com/Wowu/docker-rollout/releases/download/$PACKAGE_CORE_VERSION/${name}"
+  log::debug "[package][$name][$kernel][$arch] url: $url"
+
+  # download
+  os::download $tmp_file $url
+
+  # make executable
+  chmod +x $tmp_file
+
+  # install
+  sudo mv $tmp_file $usr_bin_dir/$name
+
+  # clean
+  rm -rf $tmp_dir
+
+  # if [ "$CI" = "true" ]; then
+  #   if [ -z "$GITHUB_CI" ] || [ -z "$GITHUB_ACTIONS" ]; then
+  #     log::info "[$(timestamp)] install buildx in github action"
+  #   elif [ -z "$GITLAB_CI" ]; then
+  #     log::info "[$(timestamp)] install buildx in gitlab ci"
+  #   elif [ -z "$EUNOMIA_CI" ]; then
+  #     log::info "[$(timestamp)] install buildx in eunomia ci"
+  #   else
+  #     log::info "[$(timestamp)] ignore create docker buildx build in CI mode."
+  #     return 0
+  #   fi
+  # fi
+
+  # as docker plugin
+  mkdir -p $HOME/.docker/cli-plugins
+  local docker_plugin_name="docker-rollout"
+  log::info "[$(timestamp)] start to create docker plugin: $docker_plugin_name ..."
+  ln -sf $usr_bin_dir/$name $HOME/.docker/cli-plugins/$docker_plugin_name
+  if [ "$?" != "0" ]; then
+    log::error "[$(timestamp)] failed to create docker plugin: ${docker_plugin_name}."
+    return 1
+  fi
+  log::success "[$(timestamp)] succeed to create docker plugin: ${docker_plugin_name}."
+}
+
+export -f install
